@@ -90,6 +90,18 @@
             text-align: center;
         }
 
+        /* Logo Styling */
+        #game-logo {
+            max-width: 180px;
+            max-height: 180px;
+            width: auto;
+            height: auto;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            /* Optional: Add a glow if the image is transparent */
+            filter: drop-shadow(0 0 10px rgba(255, 50, 50, 0.5)); 
+        }
+
         h1 {
             font-family: 'Black Ops One', cursive;
             font-size: 2.5rem;
@@ -243,6 +255,12 @@
 
         <!-- Menu Screen -->
         <div id="menu-screen">
+            <!-- 
+                IMAGE PATH UPDATED: 
+                Now points to "image.png" in the same root folder.
+            -->
+            <img src="image.png" alt="Game Logo" id="game-logo" onerror="this.style.display='none'">
+
             <h1>D3V<br><span style="font-size: 1.5rem; color: #fff;">3 Tang Wala Yodha</span></h1>
             <p class="subtitle">Ek Masoom Darinde Ki Kahani</p>
             <p style="color: #aaa; font-size: 0.8rem; margin-bottom: 20px;">
