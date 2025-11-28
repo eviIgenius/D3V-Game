@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>D3V - 3 Tang wala yodha</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Roboto+Mono:wght@500&display=swap');
+
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #050505;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrolling */
+            touch-action: none; /* Disable default touch actions */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 800px; /* Max width for desktop */
+            margin: 0 auto;
+            background: #111;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to controls */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* HUD */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 10;
+            flex-wrap: wrap;
+        }
+
+        .score-box {
+            font-family: 'Black Ops One', cursive;
+            font-size: 1.2rem;
+            color: #ff3333; /* Red for aggressive theme */
+        }
+
+        /* Start / Game Over Screen */
+        #menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Black Ops One', cursive;
+            font-size: 2.5rem;
+            color: #ff3333;
+            text-shadow: 0 0 20px #ff0000;
+            margin-bottom: 5px;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #fff;
+            margin-bottom: 20px;
+            font-family: 'Roboto Mono', monospace;
+            font-style: italic;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #ff3333, #aa0000);
+            border: none;
+            padding: 15px 40px;
+            color: #fff;
+            font-family: 'Black Ops One', cursive;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border-radius: 50px;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.5);
+            transition: transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Controls */
+        #controls-area {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            box-sizing: border-box;
+            pointer-events: none; /* Allow clicks to pass specifically to buttons */
+            z-index: 20;
+        }
+
+        /* Joystick */
+        #joystick-container {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+            display: none; /* Hidden by default until toggled or on mobile logic */
+        }
+
+        #joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 50, 50, 0.8);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255, 50, 50, 0.5);
+        }
+
+        /* Action Buttons */
+        #action-buttons {
+            pointer-events: auto;
+            display: none; /* Hidden by default */
+        }
+
+        #fire-btn {
+            width: 90px;
+            height: 90px;
+            background: rgba(255, 50, 50, 0.6);
+            border: 4px solid rgba(255, 100, 100, 0.8);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: white;
+            user-select: none;
+            touch-action: manipulation;
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.4);
+        }
+        
+        #fire-btn:active {
+            background: rgba(255, 50, 50, 0.9);
+            transform: scale(0.95);
+        }
+
+        /* Toggle Button */
+        #toggle-controls {
+            position: absolute;
+            top: 60px; /* Moved down slightly to avoid overlap with score on small screens */
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #aaa;
+            border: 1px solid #555;
+            padding: 6px 10px;
+            font-size: 0.7rem;
+            border-radius: 8px;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 100;
+        }
+
+        .hidden { display: none !important; }
+        .flex { display: flex !important; }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- Toggle Controls Button -->
+        <button id="toggle-controls">🕹️ Controls</button>
+
+        <!-- UI Layer -->
+        <div class="ui-layer">
+            <div class="hud">
+                <div class="score-box" id="score-display">DARINDAGI: 0</div>
+                <div class="score-box" style="color: #ffeb3b;" id="highscore-display">MAX DARINDAGI: 0</div>
+            </div>
+
+            <!-- Virtual Controls -->
+            <div id="controls-area">
+                <div id="joystick-container">
+                    <div id="joystick-knob"></div>
+                </div>
+                <div id="action-buttons">
+                    <button id="fire-btn">🔥</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Screen -->
+        <div id="menu-screen">
+            <h1>D3V<br><span style="font-size: 1.5rem; color: #fff;">3 Tang Wala Yodha</span></h1>
+            <p class="subtitle">Ek Masoom Darinde Ki Kahani</p>
+            <p style="color: #aaa; font-size: 0.8rem; margin-bottom: 20px;">
+                Use WASD / Joystick to Move<br>
+                Space / Button to Shoot
+            </p>
+            <p id="final-score" style="margin-top: 10px; color: #ffeb3b; font-weight: bold;"></p>
+            <button class="btn" id="start-btn">PLAY</button>
+        </div>
+    </div>
+
+    <!-- Storage Logic (Local Storage for standalone use) -->
+    <script>
+        const STORAGE_KEY = 'd3v_darindagi_score';
+        let globalHighScore = 0;
+
+        // Load score on startup
+        try {
+            const savedScore = localStorage.getItem(STORAGE_KEY);
+            if (savedScore) {
+                globalHighScore = parseInt(savedScore, 10);
+            }
+        } catch(e) {
+            console.log("Local Storage not available");
+        }
+
+        function updateHighScoreUI() {
+            const el = document.getElementById('highscore-display');
+            if(el) el.innerText = "MAX DARINDAGI: " + globalHighScore;
+        }
+
+        // Call immediately to show saved score
+        updateHighScoreUI();
+
+        window.saveScore = (score) => {
+            if (score > globalHighScore) {
+                globalHighScore = score;
+                updateHighScoreUI();
+                try {
+                    localStorage.setItem(STORAGE_KEY, globalHighScore);
+                } catch(e) {}
+            }
+        };
+    </script>
+
+    <script>
+        // --- GAME ENGINE ---
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score-display');
+        const menuScreen = document.getElementById('menu-screen');
+        const startBtn = document.getElementById('start-btn');
+        const finalScoreDisplay = document.getElementById('final-score');
+        
+        // Input Controls
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickKnob = document.getElementById('joystick-knob');
+        const fireBtn = document.getElementById('fire-btn');
+        const controlsToggleBtn = document.getElementById('toggle-controls');
+        const actionButtons = document.getElementById('action-buttons');
+
+        let width, height;
+        let isRunning = false;
+        let score = 0;
+        let frameId;
+        
+        // Game State
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false, " ": false };
+        const input = { x: 0, y: 0, shoot: false };
+        
+        // Settings
+        let showControls = true; 
+
+        // --- RESIZE HANDLING ---
+        function resize() {
+            width = canvas.parentElement.clientWidth;
+            height = canvas.parentElement.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- CLASSES ---
+
+        class Player {
+            constructor() {
+                this.x = width / 2;
+                this.y = height / 2;
+                this.radius = 20;
+                this.speed = 5;
+                this.angle = 0; 
+                this.rotationSpeed = 0.1;
+                this.color = '#ff3333'; // Red for D3V
+                this.legs = 3;
+                this.cooldown = 0;
+            }
+
+            update() {
+                // Movement Logic
+                let dx = 0;
+                let dy = 0;
+
+                if (keys.w || keys.ArrowUp) dy = -1;
+                if (keys.s || keys.ArrowDown) dy = 1;
+                if (keys.a || keys.ArrowLeft) dx = -1;
+                if (keys.d || keys.ArrowRight) dx = 1;
+
+                dx += input.x;
+                dy += input.y;
+
+                const len = Math.sqrt(dx*dx + dy*dy);
+                if (len > 0.1) {
+                    dx /= len;
+                    dy /= len;
+                    this.x += dx * this.speed;
+                    this.y += dy * this.speed;
+                    this.rotationSpeed = 0.3;
+                } else {
+                    this.rotationSpeed = 0.1;
+                }
+
+                this.x = Math.max(this.radius, Math.min(width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(height - this.radius, this.y));
+
+                this.angle += this.rotationSpeed;
+
+                if (this.cooldown > 0) this.cooldown--;
+                if ((keys[" "] || input.shoot) && this.cooldown <= 0) {
+                    this.shoot();
+                    this.cooldown = 8; // Slightly faster fire rate
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                // Draw 3-Legged Yodha (Sharp, menacing shape)
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                for (let i = 0; i < this.legs; i++) {
+                    ctx.rotate((Math.PI * 2) / this.legs);
+                    ctx.beginPath();
+                    // Sharper, blade-like legs
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(10, -5);
+                    ctx.lineTo(40, 0); 
+                    ctx.lineTo(10, 5);
+                    ctx.fill();
+                    
+                    // Claw at end
+                    ctx.beginPath();
+                    ctx.arc(40, 0, 3, 0, Math.PI*2);
+                    ctx.fillStyle = '#fff';
+                    ctx.fill();
+                    ctx.fillStyle = this.color; 
+                }
+                
+                // Center hub
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#aa0000';
+                ctx.fill();
+
+                ctx.restore();
+            }
+
+            shoot() {
+                bullets.push(new Bullet(this.x, this.y));
+            }
+        }
+
+        class Bullet {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 5;
+                this.speed = 15;
+            }
+
+            update() {
+                this.y -= this.speed;
+                return this.y > -10;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ff9900'; // Fire color
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ff0000';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        class Enemy {
+            constructor() {
+                this.radius = 15 + Math.random() * 10;
+                this.x = Math.random() * (width - this.radius * 2) + this.radius;
+                this.y = -this.radius - Math.random() * 100;
+                this.speed = 2 + Math.random() * 2 + (score * 0.05); 
+                // Darker, creepier colors
+                const hue = Math.random() > 0.5 ? 0 : 270; // Red or Purple
+                this.color = `hsl(${hue}, 100%, ${20 + Math.random() * 30}%)`; 
+                this.angle = 0;
+            }
+
+            update() {
+                this.y += this.speed;
+                this.angle -= 0.05;
+                
+                if (player.x > this.x) this.x += 0.8; // Aggressive tracking
+                else this.x -= 0.8;
+
+                return this.y < height + 50;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                // Spiky Enemy
+                const spikes = 5;
+                for(let i=0; i<spikes; i++) {
+                   ctx.rotate(Math.PI * 2 / spikes);
+                   ctx.lineTo(0, -this.radius);
+                   ctx.lineTo(this.radius/2, -this.radius/2);
+                }
+                ctx.fill();
+                
+                // Glowing eyes
+                ctx.fillStyle = "#ffff00";
+                ctx.beginPath();
+                ctx.arc(-5, -5, 3, 0, Math.PI*2);
+                ctx.arc(5, -5, 3, 0, Math.PI*2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.life = 1.0;
+                this.color = color;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.05;
+                return this.life > 0;
+            }
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        // --- GAME LOOP & LOGIC ---
+
+        let player;
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        let spawnTimer = 0;
+
+        function init() {
+            player = new Player();
+            bullets = [];
+            enemies = [];
+            particles = [];
+            score = 0;
+            spawnTimer = 0;
+            isRunning = true;
+            scoreDisplay.innerText = "DARINDAGI: 0";
+            menuScreen.classList.add('hidden');
+            animate();
+        }
+
+        function gameOver() {
+            isRunning = false;
+            cancelAnimationFrame(frameId);
+            menuScreen.classList.remove('hidden');
+            finalScoreDisplay.innerText = "Darindagi Points Collected: " + score;
+            
+            if (window.saveScore) window.saveScore(score);
+        }
+
+        function animate() {
+            if (!isRunning) return;
+            
+            // Motion blur background
+            ctx.fillStyle = 'rgba(10, 5, 5, 0.3)'; 
+            ctx.fillRect(0, 0, width, height);
+
+            spawnTimer--;
+            if (spawnTimer <= 0) {
+                enemies.push(new Enemy());
+                spawnTimer = Math.max(15, 50 - score); // Intensity ramps up fast
+            }
+
+            player.update();
+            player.draw();
+
+            // Bullets
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                if (!b.update()) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+                b.draw();
+            }
+
+            // Enemies
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                let e = enemies[i];
+                if (!e.update()) {
+                    enemies.splice(i, 1);
+                    continue;
+                }
+                e.draw();
+
+                const distPlayer = Math.hypot(player.x - e.x, player.y - e.y);
+                if (distPlayer < player.radius + e.radius) {
+                    for(let k=0; k<15; k++) particles.push(new Particle(player.x, player.y, '#ff0000'));
+                    gameOver();
+                }
+
+                for (let j = bullets.length - 1; j >= 0; j--) {
+                    let b = bullets[j];
+                    const distBullet = Math.hypot(b.x - e.x, b.y - e.y);
+                    if (distBullet < e.radius + b.radius) {
+                        for(let k=0; k<8; k++) particles.push(new Particle(e.x, e.y, e.color));
+                        
+                        enemies.splice(i, 1);
+                        bullets.splice(j, 1);
+                        score += 10;
+                        scoreDisplay.innerText = "DARINDAGI: " + score;
+                        break; 
+                    }
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                if (!p.update()) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                p.draw();
+            }
+
+            frameId = requestAnimationFrame(animate);
+        }
+
+
+        // --- INPUT HANDLING ---
+
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+
+        // Virtual Joystick Logic
+        let joyStartX = 0;
+        let joyStartY = 0;
+        let joyMoving = false;
+        const joyRadius = 60; 
+
+        joystickContainer.addEventListener('touchstart', e => {
+            joyMoving = true;
+            const touch = e.touches[0];
+            const rect = joystickContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+            updateJoystick(touch.clientX, touch.clientY, centerX, centerY);
+        }, {passive: false});
+
+        joystickContainer.addEventListener('touchmove', e => {
+            if (!joyMoving) return;
+            e.preventDefault(); 
+            const touch = e.touches[0];
+            const rect = joystickContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+            updateJoystick(touch.clientX, touch.clientY, centerX, centerY);
+        }, {passive: false});
+
+        joystickContainer.addEventListener('touchend', e => {
+            joyMoving = false;
+            input.x = 0;
+            input.y = 0;
+            joystickKnob.style.transform = `translate(-50%, -50%)`; 
+        });
+
+        function updateJoystick(clientX, clientY, centerX, centerY) {
+            let dx = clientX - centerX;
+            let dy = clientY - centerY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            const clampDist = Math.min(dist, joyRadius);
+            const angle = Math.atan2(dy, dx);
+            const knobX = Math.cos(angle) * clampDist;
+            const knobY = Math.sin(angle) * clampDist;
+
+            joystickKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+
+            input.x = (knobX / joyRadius);
+            input.y = (knobY / joyRadius);
+        }
+
+        const handleFireStart = (e) => {
+            e.preventDefault();
+            input.shoot = true;
+            fireBtn.style.transform = "scale(0.9)";
+            fireBtn.style.background = "rgba(255, 50, 50, 0.9)";
+        };
+        const handleFireEnd = (e) => {
+            e.preventDefault();
+            input.shoot = false;
+            fireBtn.style.transform = "scale(1)";
+            fireBtn.style.background = "rgba(255, 50, 50, 0.6)";
+        };
+
+        fireBtn.addEventListener('touchstart', handleFireStart, {passive: false});
+        fireBtn.addEventListener('touchend', handleFireEnd);
+        fireBtn.addEventListener('mousedown', handleFireStart);
+        fireBtn.addEventListener('mouseup', handleFireEnd);
+
+        function toggleControls() {
+            showControls = !showControls;
+            const display = showControls ? 'flex' : 'none';
+            const joyDisplay = showControls ? 'block' : 'none';
+            
+            joystickContainer.style.display = joyDisplay;
+            actionButtons.style.display = display;
+            
+            controlsToggleBtn.innerText = showControls ? "🚫 Hide Controls" : "🕹️ Show Controls";
+        }
+        
+        controlsToggleBtn.addEventListener('click', toggleControls);
+        toggleControls(); 
+
+        startBtn.addEventListener('click', init);
+
+    </script>
+</body>
+</html>
